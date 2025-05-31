@@ -1,11 +1,11 @@
 import streamlit as st
 import requests
 import pandas as pd
-from office366.sharepoint.client_context import ClientContext
-from office366.runtime.auth.authentication_context import AuthenticationContext
+from office365.sharepoint.client_context import ClientContext
+from office365.runtime.auth.authentication_context import AuthenticationContext
 from datetime import datetime, timedelta
 import os
-import io # Importe io para manipulação de bytes em memória
+import io 
 
 # --- Configurações e Variáveis de Ambiente ---
 # Use st.secrets para acessar variáveis de ambiente de forma segura no Streamlit
