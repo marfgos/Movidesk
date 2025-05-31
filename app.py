@@ -93,7 +93,7 @@ if st.button("🚀 Iniciar coleta e upload"):
     with st.spinner("Coletando dados..."):
 
         # --- Intervalo de datas ---
-        start_date = datetime(2025, 5, 25)
+        start_date = datetime(2025, 4, 1)
         end_date = datetime(2025, 5, 31)
         dates = [start_date + timedelta(days=i) for i in range((end_date - start_date).days + 1)]
 
