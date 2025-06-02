@@ -20,9 +20,9 @@ def uploadSharePoint(local_file_path, sharepoint_folder):
             file_name = os.path.basename(local_file_path)
             target_folder = ctx.web.get_folder_by_server_relative_url(sharepoint_folder)
             target_folder.upload_file(file_name, file_content).execute_query()
-            st.success(f"✅ Arquivo **{file_name}** enviado com sucesso para o SharePoint.")
+            st.success(f"✅ Arquivo **{file_name}** enviado com sucesso, agora é só atualizar o PowerBI!")
     else:
-        st.error("❌ Autenticação no SharePoint falhou.")
+        st.error("❌ Autenticação no SharePoint falhou, contatar adm.")
 
 # --- Funções auxiliares ---
 
@@ -97,7 +97,7 @@ data_inicial = st.date_input(
     max_value=datetime.now().date()
 )
 
-if st.button("🚀 Iniciar coleta e upload"):
+if st.button("🚀 Iniciar a extração da base e upload para atualização do indicador."):
     with st.spinner("Coletando dados..."):
 
         # --- Intervalo de datas ---
@@ -108,16 +108,16 @@ if st.button("🚀 Iniciar coleta e upload"):
         all_data = []
         progress = st.progress(0)
 
-        for idx, date in enumerate(dates, 1):
-            st.write(f"📅 Coletando: {date.strftime('%Y-%m-%d')}")
-            data = get_tickets_for_date(date)
-            if isinstance(data, list):
-                all_data.extend(data)
-            progress.progress(idx / len(dates))
+##        for idx, date in enumerate(dates, 1):
+##            st.write(f"📅 Coletando: {date.strftime('%Y-%m-%d')}")
+##            data = get_tickets_for_date(date)
+##            if isinstance(data, list):
+##                all_data.extend(data)
+##            progress.progress(idx / len(dates))
 
-        for item in all_data:
-            if 'actions' not in item:
-                item['actions'] = None
+##        for item in all_data:
+##            if 'actions' not in item:
+##                item['actions'] = None
 
         df = pd.DataFrame(all_data)
         df['first_action_description'] = df['actions'].apply(get_first_action_description)
@@ -212,7 +212,7 @@ if st.button("🚀 Iniciar coleta e upload"):
         # --- Salvando arquivo temporário ---
         csv = 'TicketsMovidesk.csv'
         df_final.to_csv(csv, index=False)
-        st.success(f"✅ Arquivo **{csv}** salvo localmente.")
+        st.success(f"✅ Arquivo **{csv}** salvo no dataframe.")
 
         # --- Upload para SharePoint ---
         uploadSharePoint(csv, sharepoint_folder)
