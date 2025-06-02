@@ -20,7 +20,7 @@ def uploadSharePoint(local_file_path, sharepoint_folder):
             file_name = os.path.basename(local_file_path)
             target_folder = ctx.web.get_folder_by_server_relative_url(sharepoint_folder)
             target_folder.upload_file(file_name, file_content).execute_query()
-            st.success(f"✅ Arquivo **{file_name}** enviado com sucesso para o SharePoint.")
+            st.success(f"✅ Arquivo **{file_name}** enviado com sucesso para o SharePoint, agora é só atualizar o indicador: https://app.powerbi.com/groups/9b59453e-21da-4a0c-8b2f-71451adc77fb/reports/5536e2b3-d355-4087-a081-2edc90854bb7/c5a41d1f74f190655f38?experience=power-bi")
     else:
         st.error("❌ Autenticação no SharePoint falhou.")
 
