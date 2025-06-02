@@ -108,12 +108,12 @@ if st.button("🚀 Iniciar a extração da base e upload para atualização do i
         all_data = []
         progress = st.progress(0)
 
-##        for idx, date in enumerate(dates, 1):
-##            st.write(f"📅 Coletando: {date.strftime('%Y-%m-%d')}")
-##            data = get_tickets_for_date(date)
-##            if isinstance(data, list):
-##                all_data.extend(data)
-##            progress.progress(idx / len(dates))
+        for idx, date in enumerate(dates, 1):
+            st.write(f"📅 Coletando: {date.strftime('%Y-%m-%d')}")
+            data = get_tickets_for_date(date)
+            if isinstance(data, list):
+                all_data.extend(data)
+            progress.progress(idx / len(dates))
 
         for item in all_data:
             if 'actions' not in item:
