@@ -109,7 +109,7 @@ if st.button("🚀 Iniciar a extração de dados e upload da base para atualiza�
         progress = st.progress(0)
 
         for idx, date in enumerate(dates, 1):
-            st.write(f"📅 Coletando: {date.strftime('%Y-%m-%d')}")
+            # st.write(f"📅 Coletando: {date.strftime('%Y-%m-%d')}") # Linha removida/comentada
             data = get_tickets_for_date(date)
             if isinstance(data, list):
                 all_data.extend(data)
