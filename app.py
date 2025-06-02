@@ -115,9 +115,9 @@ if st.button("🚀 Iniciar a extração da base e upload para atualização do i
 ##                all_data.extend(data)
 ##            progress.progress(idx / len(dates))
 
-##        for item in all_data:
-##            if 'actions' not in item:
-##                item['actions'] = None
+        for item in all_data:
+            if 'actions' not in item:
+                item['actions'] = None
 
         df = pd.DataFrame(all_data)
         df['first_action_description'] = df['actions'].apply(get_first_action_description)
