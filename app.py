@@ -97,8 +97,8 @@ data_inicial = st.date_input(
     max_value=datetime.now().date()
 )
 
-if st.button("🚀 Iniciar coleta e upload"):
-    with st.spinner("Coletando dados..."):
+if st.button("🚀 Iniciar a extração de dados e upload da base para atualização do indicador!"):
+    with st.spinner("Extraindo base..."):
 
         # --- Intervalo de datas ---
         start_date = datetime.combine(data_inicial, datetime.min.time())
