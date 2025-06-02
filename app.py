@@ -89,12 +89,20 @@ def get_first_action_description(actions):
 
 st.title("📊 Coleta de Tickets Movidesk e Upload para SharePoint")
 
+# --- Seleção de data inicial ---
+data_inicial = st.date_input(
+    "Selecione a data inicial:",
+    value=datetime(2025, 4, 1).date(),
+    min_value=datetime(2025, 1, 1).date(),
+    max_value=datetime.now().date()
+)
+
 if st.button("🚀 Iniciar coleta e upload"):
     with st.spinner("Coletando dados..."):
 
         # --- Intervalo de datas ---
-        start_date = datetime(2025, 4, 1)
-        end_date = datetime(2025, 5, 31)
+        start_date = datetime.combine(data_inicial, datetime.min.time())
+        end_date = datetime.now()
         dates = [start_date + timedelta(days=i) for i in range((end_date - start_date).days + 1)]
 
         all_data = []
@@ -112,7 +120,6 @@ if st.button("🚀 Iniciar coleta e upload"):
                 item['actions'] = None
 
         df = pd.DataFrame(all_data)
-
         df['first_action_description'] = df['actions'].apply(get_first_action_description)
 
         expanded_fields = df['customFieldValues'].apply(extract_custom_fields)
@@ -135,69 +142,69 @@ if st.button("🚀 Iniciar coleta e upload"):
         df_final['resolvedIn'] = pd.to_datetime(df_final['resolvedIn'], errors='coerce').dt.strftime('%d/%m/%Y %H:%M')
 
         # --- Mapeamento dos nomes das colunas customizadas ---
-        de_para_customField = {
-            'customField_177683': 'CON - ANO',
-            'customField_178151': 'CON - ID DE CUSTO',
-            'customField_177671': 'CON - MOTIVO DO TICKET',
-            'customField_177678': 'CON - PLACA',
-            'customField_178156': 'CON - PRIMEIRO CONTATO?',
-            'customField_177801': 'CON - REGIÃO',
-            'customField_177682': 'CON - TIPO DE VEICULO',
-            'customField_177804': 'CON - UF',
-            'customField_186813': 'CON - VALOR DO FRENTE NEGOCIADO?',
-            'customField_178097': 'CON - VALOR MESA',
-            'customField_177685': 'CON - VALOR NEGOCIADO',
-            'customField_174358': 'CRC - Clientes',
-            'customField_179575': 'CRC - E-mail',
-            'customField_185839': 'CRC - Filial',
-            'customField_175192': 'CRC - Motivo',
-            'customField_175190': 'CRC - Origem',
-            'customField_175170': 'CRC - Tipo',
-            'customField_175125': 'DEV - Agente Auxiliar',
-            'customField_175121': 'DEV - Classificação',
-            'customField_175118': 'DEV - Lista de Agentes',
-            'customField_177084': 'DEV - Observação',
-            'customField_175123': 'DEV - Tipo de Chamado',
-            'customField_177132': 'DEV -- Tipo de Chamado',
-            'customField_189130': 'FAT - Armazém Filial',
-            'customField_189129': 'FAT - Carregamento',
-            'customField_189128': 'FAT - CNPJ cliente sacado',
-            'customField_189139': 'FAT - Contrato cliente sacado',
-            'customField_189133': 'FAT - Grupo cliente sacado',
-            'customField_190227': 'FAT - Número do CT-e/RPS',
-            'customField_189131': 'FAT - Rota emissão',
-            'customField_189189': 'FAT - Status de finalização - Descrição',
-            'customField_189188': 'FAT - Status de finalização - Motivo',
-            'customField_189184': 'FAT - Status de finalização - Setor responsável pela divergência',
-            'customField_190231': 'FAT - Usuário',
-            'customField_188182': 'GPI - Data de Inicio',
-            'customField_188183': 'GPI - Data Final',
-            'customField_188179': 'GPI - Observação',
-            'customField_188180': 'GPI - Responsável',
-            'customField_188181': 'GPI - Status',
-            'customField_174495': 'RDA - Agente Auxiliar',
-            'customField_174494': 'RDA - Assunto',
-            'customField_174501': 'RDA - Prazo',
-            'customField_174493': 'RDA - Responsável',
-            'customField_174489': 'RDA - Tipo de Chamado',
-            'customField_187641': 'RDA - tipo de evento',
-            'customField_178941': 'RDA - Tipo de evento',
-            'customField_174488': 'RDA - Tipo de requisição',
-            'customField_174487': 'RDA - Tipo de Serviço',
-            'customField_189009': 'SAC - Categoria',
-            'customField_189005': 'SAC - Observação',
-            'customField_189008': 'SAC - Produto',
-            'customField_189007': 'SAC - Tipo de Atendimento',
-            'customField_189010': 'SAC - Tipo de Problema',
-            'customField_174486': 'SAC - Tipo de Solução',
-            'customField_174485': 'SAC - Tipo de Subproblema',
-            'customField_174484': 'SAC - Tipo de Ticket',
-            'customField_188495': 'SAC - Tipo de Ticket',
-            'customField_177674': 'SIG - Agente Auxiliar',
-            'customField_177675': 'SIG - Motivo',
-            'customField_177676': 'SIG - Observação',
-            'customField_177677': 'SIG - Responsável',
-            'customField_177673': 'SIG - Tipo de Ticket'
+        de_para_customField = {  
+            'customField_177683': 'CON - ANO',  
+            'customField_178151': 'CON - ID DE CUSTO',  
+            'customField_177671': 'CON - MOTIVO DO TICKET',  
+            'customField_177678': 'CON - PLACA',  
+            'customField_178156': 'CON - PRIMEIRO CONTATO?',  
+            'customField_177801': 'CON - REGIÃO',  
+            'customField_177682': 'CON - TIPO DE VEICULO',  
+            'customField_177804': 'CON - UF',  
+            'customField_186813': 'CON - VALOR DO FRENTE NEGOCIADO?',  
+            'customField_178097': 'CON - VALOR MESA',  
+            'customField_177685': 'CON - VALOR NEGOCIADO',  
+            'customField_174358': 'CRC - Clientes',  
+            'customField_179575': 'CRC - E-mail',  
+            'customField_185839': 'CRC - Filial',  
+            'customField_175192': 'CRC - Motivo',  
+            'customField_175190': 'CRC - Origem',  
+            'customField_175170': 'CRC - Tipo',  
+            'customField_175125': 'DEV - Agente Auxiliar',  
+            'customField_175121': 'DEV - Classificação',  
+            'customField_175118': 'DEV - Lista de Agentes',  
+            'customField_177084': 'DEV - Observação',  
+            'customField_175123': 'DEV - Tipo de Chamado',  
+            'customField_177132': 'DEV -- Tipo de Chamado',  
+            'customField_189130': 'FAT - Armazém Filial',  
+            'customField_189129': 'FAT - Carregamento',  
+            'customField_189128': 'FAT - CNPJ cliente sacado',  
+            'customField_189139': 'FAT - Contrato cliente sacado',  
+            'customField_189133': 'FAT - Grupo cliente sacado',  
+            'customField_190227': 'FAT - Número do CT-e/RPS',  
+            'customField_189131': 'FAT - Rota emissão',  
+            'customField_189189': 'FAT - Status de finalização - Descrição',  
+            'customField_189188': 'FAT - Status de finalização - Motivo',  
+            'customField_189184': 'FAT - Status de finalização - Setor responsável pela divergência',  
+            'customField_190231': 'FAT - Usuário',  
+            'customField_188182': 'GPI - Data de Inicio',  
+            'customField_188183': 'GPI - Data Final',  
+            'customField_188179': 'GPI - Observação',  
+            'customField_188180': 'GPI - Responsável',  
+            'customField_188181': 'GPI - Status',  
+            'customField_174495': 'RDA - Agente Auxiliar',  
+            'customField_174494': 'RDA - Assunto',  
+            'customField_174501': 'RDA - Prazo',  
+            'customField_174493': 'RDA - Responsável',  
+            'customField_174489': 'RDA - Tipo de Chamado',  
+            'customField_187641': 'RDA - tipo de evento',  
+            'customField_178941': 'RDA - Tipo de evento',  
+            'customField_174488': 'RDA - Tipo de requisição',  
+            'customField_174487': 'RDA - Tipo de Serviço',  
+            'customField_189009': 'SAC - Categoria',  
+            'customField_189005': 'SAC - Observação',  
+            'customField_189008': 'SAC - Produto',  
+            'customField_189007': 'SAC - Tipo de Atendimento',  
+            'customField_189010': 'SAC - Tipo de Problema',  
+            'customField_174486': 'SAC - Tipo de Solução',  
+            'customField_174485': 'SAC - Tipo de Subproblema',  
+            'customField_174484': 'SAC - Tipo de Ticket',  
+            'customField_188495': 'SAC - Tipo de Ticket',  
+            'customField_177674': 'SIG - Agente Auxiliar',  
+            'customField_177675': 'SIG - Motivo',  
+            'customField_177676': 'SIG - Observação',  
+            'customField_177677': 'SIG - Responsável',  
+            'customField_177673': 'SIG - Tipo de Ticket'  
         }
 
         df_final = df_final.rename(columns=de_para_customField)
