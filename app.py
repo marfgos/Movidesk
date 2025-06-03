@@ -98,8 +98,13 @@ data_inicial = st.date_input(
 )
 
 if st.button("🚀 Iniciar a extração de dados e upload da base para atualização do indicador!"):
-    with st.spinner("Extraindo base..."):
+    # --- Captura o timestamp da execução ---
+    execution_timestamp = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
 
+    # --- Exibe o timestamp ao lado da barra de progresso ---
+    st.info(f"🕒 Data/hora da execução: {execution_timestamp}")
+
+    with st.spinner("Extraindo base..."):
         # --- Intervalo de datas ---
         start_date = datetime.combine(data_inicial, datetime.min.time())
         end_date = datetime.now()
@@ -109,7 +114,6 @@ if st.button("🚀 Iniciar a extração de dados e upload da base para atualiza�
         progress = st.progress(0)
 
         for idx, date in enumerate(dates, 1):
-            # st.write(f"📅 Coletando: {date.strftime('%Y-%m-%d')}") # Linha removida/comentada
             data = get_tickets_for_date(date)
             if isinstance(data, list):
                 all_data.extend(data)
@@ -132,8 +136,8 @@ if st.button("🚀 Iniciar a extração de dados e upload da base para atualiza�
         createdBy_fields_df = pd.DataFrame(expanded_createdBy.tolist())
 
         df_final = pd.concat([
-            df.drop(['owner', 'customFieldValues', 'createdBy', 'actions'], axis=1), 
-            owner_fields_df, 
+            df.drop(['owner', 'customFieldValues', 'createdBy', 'actions'], axis=1),
+            owner_fields_df,
             custom_fields_df,
             createdBy_fields_df
         ], axis=1)
@@ -141,75 +145,13 @@ if st.button("🚀 Iniciar a extração de dados e upload da base para atualiza�
         df_final['createdDate'] = pd.to_datetime(df_final['createdDate'], errors='coerce').dt.strftime('%d/%m/%Y %H:%M')
         df_final['resolvedIn'] = pd.to_datetime(df_final['resolvedIn'], errors='coerce').dt.strftime('%d/%m/%Y %H:%M')
 
-        # --- Mapeamento dos nomes das colunas customizadas ---
-        de_para_customField = {  
-            'customField_177683': 'CON - ANO',  
-            'customField_178151': 'CON - ID DE CUSTO',  
-            'customField_177671': 'CON - MOTIVO DO TICKET',  
-            'customField_177678': 'CON - PLACA',  
-            'customField_178156': 'CON - PRIMEIRO CONTATO?',  
-            'customField_177801': 'CON - REGIÃO',  
-            'customField_177682': 'CON - TIPO DE VEICULO',  
-            'customField_177804': 'CON - UF',  
-            'customField_186813': 'CON - VALOR DO FRENTE NEGOCIADO?',  
-            'customField_178097': 'CON - VALOR MESA',  
-            'customField_177685': 'CON - VALOR NEGOCIADO',  
-            'customField_174358': 'CRC - Clientes',  
-            'customField_179575': 'CRC - E-mail',  
-            'customField_185839': 'CRC - Filial',  
-            'customField_175192': 'CRC - Motivo',  
-            'customField_175190': 'CRC - Origem',  
-            'customField_175170': 'CRC - Tipo',  
-            'customField_175125': 'DEV - Agente Auxiliar',  
-            'customField_175121': 'DEV - Classificação',  
-            'customField_175118': 'DEV - Lista de Agentes',  
-            'customField_177084': 'DEV - Observação',  
-            'customField_175123': 'DEV - Tipo de Chamado',  
-            'customField_177132': 'DEV -- Tipo de Chamado',  
-            'customField_189130': 'FAT - Armazém Filial',  
-            'customField_189129': 'FAT - Carregamento',  
-            'customField_189128': 'FAT - CNPJ cliente sacado',  
-            'customField_189139': 'FAT - Contrato cliente sacado',  
-            'customField_189133': 'FAT - Grupo cliente sacado',  
-            'customField_190227': 'FAT - Número do CT-e/RPS',  
-            'customField_189131': 'FAT - Rota emissão',  
-            'customField_189189': 'FAT - Status de finalização - Descrição',  
-            'customField_189188': 'FAT - Status de finalização - Motivo',  
-            'customField_189184': 'FAT - Status de finalização - Setor responsável pela divergência',  
-            'customField_190231': 'FAT - Usuário',  
-            'customField_188182': 'GPI - Data de Inicio',  
-            'customField_188183': 'GPI - Data Final',  
-            'customField_188179': 'GPI - Observação',  
-            'customField_188180': 'GPI - Responsável',  
-            'customField_188181': 'GPI - Status',  
-            'customField_174495': 'RDA - Agente Auxiliar',  
-            'customField_174494': 'RDA - Assunto',  
-            'customField_174501': 'RDA - Prazo',  
-            'customField_174493': 'RDA - Responsável',  
-            'customField_174489': 'RDA - Tipo de Chamado',  
-            'customField_187641': 'RDA - tipo de evento',  
-            'customField_178941': 'RDA - Tipo de evento',  
-            'customField_174488': 'RDA - Tipo de requisição',  
-            'customField_174487': 'RDA - Tipo de Serviço',  
-            'customField_189009': 'SAC - Categoria',  
-            'customField_189005': 'SAC - Observação',  
-            'customField_189008': 'SAC - Produto',  
-            'customField_189007': 'SAC - Tipo de Atendimento',  
-            'customField_189010': 'SAC - Tipo de Problema',  
-            'customField_174486': 'SAC - Tipo de Solução',  
-            'customField_174485': 'SAC - Tipo de Subproblema',  
-            'customField_174484': 'SAC - Tipo de Ticket',  
-            'customField_188495': 'SAC - Tipo de Ticket',  
-            'customField_177674': 'SIG - Agente Auxiliar',  
-            'customField_177675': 'SIG - Motivo',  
-            'customField_177676': 'SIG - Observação',  
-            'customField_177677': 'SIG - Responsável',  
-            'customField_177673': 'SIG - Tipo de Ticket'  
-        }
-
+        # --- Renomeia campos ---
         df_final = df_final.rename(columns=de_para_customField)
 
-        # --- Salvando arquivo temporário ---
+        # ✅ Adiciona a coluna de timestamp em todas as linhas
+        df_final['execution_timestamp'] = execution_timestamp
+
+        # --- Salva CSV ---
         csv = 'TicketsMovidesk.csv'
         df_final.to_csv(csv, index=False)
         st.success(f"✅ Arquivo **{csv}** salvo localmente.")
