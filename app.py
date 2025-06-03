@@ -98,6 +98,12 @@ data_inicial = st.date_input(
 )
 
 if st.button("🚀 Iniciar a extração de dados e upload da base para atualização do indicador!"):
+    # --- Captura o timestamp da execução ---
+    from zoneinfo import ZoneInfo
+    execution_timestamp = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y %H:%M:%S')
+    # --- Exibe o timestamp ao lado da barra de progresso ---
+    st.info(f"🕒 Data/hora da execução: {execution_timestamp}")
+
     with st.spinner("Extraindo base..."):
 
         # --- Intervalo de datas ---
@@ -109,7 +115,6 @@ if st.button("🚀 Iniciar a extração de dados e upload da base para atualiza�
         progress = st.progress(0)
 
         for idx, date in enumerate(dates, 1):
-            # st.write(f"📅 Coletando: {date.strftime('%Y-%m-%d')}") # Linha removida/comentada
             data = get_tickets_for_date(date)
             if isinstance(data, list):
                 all_data.extend(data)
@@ -208,6 +213,9 @@ if st.button("🚀 Iniciar a extração de dados e upload da base para atualiza�
         }
 
         df_final = df_final.rename(columns=de_para_customField)
+
+        # --- Adiciona a coluna de timestamp ---
+        df_final['execution_timestamp'] = execution_timestamp
 
         # --- Salvando arquivo temporário ---
         csv = 'TicketsMovidesk.csv'
