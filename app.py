@@ -99,8 +99,10 @@ data_inicial = st.date_input(
 
 if st.button("🚀 Iniciar a extração de dados e upload da base para atualização do indicador!"):
     # --- Captura o timestamp da execução ---
-    execution_timestamp = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-
+    from zoneinfo import ZoneInfo
+    execution_timestamp = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y %H:%M:%S')
+    st.info(f"🕒 Data/hora da execução: {execution_timestamp}")
+    
     # --- Exibe o timestamp ao lado da barra de progresso ---
     st.info(f"🕒 Data/hora da execução: {execution_timestamp}")
 
