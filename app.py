@@ -104,11 +104,12 @@ if st.button("🚀 Iniciar a extração de dados e upload da base para atualiza�
     st.info(f"🕒 Data/hora da execução: {execution_timestamp}")
     
     # --- Exibe o timestamp ao lado da barra de progresso ---
+    st.info(f"🕒 Data/hora da execução: {execution_timestamp}")
 
     with st.spinner("Extraindo base..."):
         # --- Intervalo de datas ---
         start_date = datetime.combine(data_inicial, datetime.min.time())
-        end_date = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        end_date = datetime.now()
         dates = [start_date + timedelta(days=i) for i in range((end_date - start_date).days + 1)]
 
         all_data = []
