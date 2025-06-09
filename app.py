@@ -48,8 +48,14 @@ def get_tickets_for_date(date):
 def extract_custom_fields(custom_field_values):
     custom_fields = {}
     for field in custom_field_values:
-        field_id = field['customFieldId']
-        value = field.get('value', None) or (field['items'][0]['customFieldItem'] if field.get('items') else None)
+        field_id = field.get('customFieldId')
+        value = field.get('value', None)
+
+        # Verificação extra para evitar erro de 'NoneType'
+        if not value and field.get('items') and isinstance(field['items'], list) and len(field['items']) > 0:
+            item = field['items'][0]
+            value = item.get('customFieldItem') if isinstance(item, dict) else None
+
         custom_fields[f'customField_{field_id}'] = value
     return custom_fields
 
