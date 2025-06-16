@@ -6,11 +6,11 @@ from office365.sharepoint.client_context import ClientContext
 from office365.runtime.auth.authentication_context import AuthenticationContext
 import os
 
-# --- CONFIGURAÇÕES DO SHAREPOINT ---
+# --- Configurações SharePoint ---
 sharepoint_folder = '/sites/DellaVolpe/Documentos%20Compartilhados/Planejamentos/Dados_PVD/'
 url_sharepoint = 'https://dellavolpecombr.sharepoint.com/sites/DellaVolpe'
-username = 'seu.email@dellavolpe.com.br'
-senha = 'sua_senha'  # de preferência, use secrets para isso
+username = 'marcos.silva@dellavolpe.com.br'
+password = '38213824rR!!'
 
 # --- Função para upload no SharePoint ---
 def uploadSharePoint(filename, pasta_destino):
