@@ -1,65 +1,64 @@
 import streamlit as st
-import pandas as pd
 import requests
-from datetime import datetime, timedelta
+import pandas as pd
 from office365.sharepoint.client_context import ClientContext
 from office365.runtime.auth.authentication_context import AuthenticationContext
+from datetime import datetime, timedelta
 import os
 
 # --- Configurações SharePoint ---
 sharepoint_folder = '/sites/DellaVolpe/Documentos%20Compartilhados/Planejamentos/Dados_PVD/'
 url_sharepoint = 'https://dellavolpecombr.sharepoint.com/sites/DellaVolpe'
-username = 'marcos.silva@dellavolpe.com.br'
-password = '38213824rR!!'
+username = 'SEU_EMAIL@empresa.com.br'
+senha = 'SUA_SENHA_APP'  # App password ou método autenticado
 
 # --- Função para upload no SharePoint ---
-def uploadSharePoint(filename, pasta_destino):
+def uploadSharePoint(nome_arquivo, pasta):
     ctx_auth = AuthenticationContext(url_sharepoint)
     if ctx_auth.acquire_token_for_user(username, senha):
         ctx = ClientContext(url_sharepoint, ctx_auth)
-        with open(filename, 'rb') as content_file:
-            file_content = content_file.read()
-        target_folder = ctx.web.get_folder_by_server_relative_url(pasta_destino)
-        target_file = target_folder.upload_file(os.path.basename(filename), file_content).execute_query()
-        st.success(f"📁 Arquivo '{filename}' enviado para o SharePoint com sucesso.")
+        with open(nome_arquivo, 'rb') as f:
+            target_folder = ctx.web.get_folder_by_server_relative_url(pasta)
+            target_file = target_folder.upload_file(nome_arquivo, f.read())
+            ctx.execute_query()
     else:
-        st.error("❌ Falha na autenticação do SharePoint.")
+        st.error("❌ Falha na autenticação com o SharePoint.")
 
-# --- INTERFACE STREAMLIT ---
-st.set_page_config(layout="wide")
-st.title("🔄 Extração de Dados Movidesk + Upload para SharePoint")
+# --- Interface Streamlit ---
+st.title("📊 Coleta de Dados Movidesk")
 
-# --- INTERVALO DE DATAS PADRÃO ---
-data_inicial = datetime(2025, 4, 1)
+# Seleção interativa de data inicial
+data_inicial = st.date_input("📅 Data inicial da consulta:", value=datetime(2025, 4, 1))
+data_final = datetime.now().date()
 
-# === ETAPA 1: Extração principal de tickets ===
-if st.button("📦 Rodar Extração de Tickets (PART1)"):
-    with st.spinner("🔄 Coletando tickets..."):
+# Conversão para ISO format
+start_date = datetime.combine(data_inicial, datetime.min.time()).strftime("%Y-%m-%dT00:00:00Z")
+end_date = datetime.combine(data_final, datetime.max.time()).strftime("%Y-%m-%dT23:59:59Z")
 
-        # Configurações da API
-        api_token = "34779acb-809d-4628-8594-441fa68dc694"
-        top = 1000
-        base_url = "https://api.movidesk.com/public/v1/tickets"
+api_token = "34779acb-809d-4628-8594-441fa68dc694"
+top = 1000
 
-        start_date = data_inicial.strftime("%Y-%m-%dT00:00:00Z")
-        end_date = datetime.now().strftime("%Y-%m-%dT23:59:59Z")
+# --- ETAPA 1: Consulta principal (tickets com campos específicos) ---
+if st.button("📥 Rodar Coleta Principal (PART1)"):
+    with st.spinner("🔄 Coletando dados principais..."):
 
-        def montar_url(skip):
+        def montar_url_part1(skip):
             return (
-                f"{base_url}?token={api_token}&$filter=createdDate ge {start_date} and createdDate le {end_date}"
-                f"&$top={top}&$skip={skip}"
+                f"https://api.movidesk.com/public/v1/tickets?"
+                f"token={api_token}&$top={top}&$skip={skip}"
+                f"&$filter=createdDate ge {start_date} and createdDate le {end_date}"
+                f"&$select=id,subject,createdDate,status,businessEmail,owner,urgency,category,serviceFirstLevel"
             )
 
-        def get_page(skip):
-            url = montar_url(skip)
-            r = requests.get(url)
-            return r.json() if r.status_code == 200 else []
-
-        def get_all():
+        def get_all_part1():
             skip = 0
             all_data = []
             while True:
-                page = get_page(skip)
+                url = montar_url_part1(skip)
+                r = requests.get(url)
+                if r.status_code != 200:
+                    break
+                page = r.json()
                 if not page:
                     break
                 all_data.extend(page)
@@ -68,38 +67,35 @@ if st.button("📦 Rodar Extração de Tickets (PART1)"):
                 skip += top
             return all_data
 
-        tickets = get_all()
-        df_tickets = pd.json_normalize(tickets)
-        csv_file_1 = "Tickets_Movidesk.csv"
-        df_tickets.to_csv(csv_file_1, index=False)
-        st.success(f"✅ Arquivo '{csv_file_1}' salvo.")
-        uploadSharePoint(csv_file_1, sharepoint_folder)
-        st.dataframe(df_tickets.head())
+        dados = get_all_part1()
+        df_part1 = pd.json_normalize(dados)
+        nome_arquivo = "Tickets_Principal.csv"
+        df_part1.to_csv(nome_arquivo, index=False)
+        st.success("✅ Arquivo principal salvo com sucesso.")
+        uploadSharePoint(nome_arquivo, sharepoint_folder)
+        st.dataframe(df_part1.head())
 
-    st.balloons()
-
-# === ETAPA 2: Extração de Ações ===
-if st.button("📝 Rodar Extração de Ações dos Tickets"):
+# --- ETAPA 2: Ações dos tickets ---
+if st.button("📄 Rodar Extração de Ações (PART2)"):
     with st.spinner("🔄 Coletando ações dos tickets..."):
 
-        def montar_url(skip):
+        def montar_url_part2(skip):
             return (
-                f"{base_url}?token={api_token}&$select=id,actions"
-                f"&$expand=actions"
+                f"https://api.movidesk.com/public/v1/tickets?"
+                f"token={api_token}&$select=id,actions&$expand=actions"
                 f"&$filter=createdDate ge {start_date} and createdDate le {end_date}"
                 f"&$top={top}&$skip={skip}"
             )
 
-        def get_page(skip):
-            url = montar_url(skip)
-            r = requests.get(url)
-            return r.json() if r.status_code == 200 else []
-
-        def get_all_actions():
+        def get_all_part2():
             skip = 0
             all_data = []
             while True:
-                page = get_page(skip)
+                url = montar_url_part2(skip)
+                r = requests.get(url)
+                if r.status_code != 200:
+                    break
+                page = r.json()
                 if not page:
                     break
                 all_data.extend(page)
@@ -108,28 +104,25 @@ if st.button("📝 Rodar Extração de Ações dos Tickets"):
                 skip += top
             return all_data
 
-        raw_data = get_all_actions()
-        flat_rows = []
-        for item in raw_data:
-            ticket_id = item.get('id')
-            actions = item.get('actions', [])
-            for action in actions:
-                action_record = {'TicketId': ticket_id}
-                for key, value in action.items():
-                    action_record[f'Action_{key}'] = value
-                flat_rows.append(action_record)
+        raw_tickets = get_all_part2()
+        registros = []
 
-        df_actions = pd.DataFrame(flat_rows)
+        for ticket in raw_tickets:
+            ticket_id = ticket.get("id")
+            for action in ticket.get("actions", []):
+                registro = {"TicketId": str(ticket_id)}
+                for campo, valor in action.items():
+                    registro["Action_" + campo] = valor
+                registros.append(registro)
 
-        # Conversão de datas
-        for col in df_actions.columns:
+        df_acoes = pd.DataFrame(registros)
+
+        for col in df_acoes.columns:
             if "Date" in col:
-                df_actions[col] = pd.to_datetime(df_actions[col], errors='coerce')
+                df_acoes[col] = pd.to_datetime(df_acoes[col], errors="coerce")
 
-        csv_file_2 = "Tickets_Actions.csv"
-        df_actions.to_csv(csv_file_2, index=False)
-        st.success(f"✅ Arquivo '{csv_file_2}' salvo.")
-        uploadSharePoint(csv_file_2, sharepoint_folder)
-        st.dataframe(df_actions.head())
-
-    st.balloons()
+        nome_arquivo = "Tickets_Actions.csv"
+        df_acoes.to_csv(nome_arquivo, index=False)
+        st.success("✅ Arquivo de ações gerado com sucesso.")
+        uploadSharePoint(nome_arquivo, sharepoint_folder)
+        st.dataframe(df_acoes.head())
