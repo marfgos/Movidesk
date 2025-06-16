@@ -9,8 +9,8 @@ import os
 # --- Configurações SharePoint ---
 sharepoint_folder = '/sites/DellaVolpe/Documentos%20Compartilhados/Planejamentos/Dados_PVD/'
 url_sharepoint = 'https://dellavolpecombr.sharepoint.com/sites/DellaVolpe'
-username = 'SEU_EMAIL@empresa.com.br'
-senha = 'SUA_SENHA_APP'  # App password ou método autenticado
+username = 'marcos.silva@dellavolpe.com.br'
+password = '38213824rR!!'
 
 # --- Função para upload no SharePoint ---
 def uploadSharePoint(nome_arquivo, pasta):
