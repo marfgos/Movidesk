@@ -98,7 +98,7 @@ st.title("📊 Coleta de Tickets Movidesk e Upload para SharePoint")
 # --- Seleção de data inicial ---
 data_inicial = st.date_input(
     "Selecione a data inicial:",
-    value=datetime(2025, 4, 1).date(),
+    value=datetime(2025, 6, 1).date(),
     min_value=datetime(2025, 1, 1).date(),
     max_value=datetime.now().date()
 )
