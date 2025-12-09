@@ -1,28 +1,11 @@
 import streamlit as st
 import requests
 import pandas as pd
-from office365.sharepoint.client_context import ClientContext
-from office365.runtime.auth.authentication_context import AuthenticationContext
 from datetime import datetime, timedelta
 import os
 
-# --- Configurações SharePoint ---
-sharepoint_folder = '/sites/DellaVolpe/Documentos%20Compartilhados/Planejamentos/Dados_PVD/'
-url_sharepoint = 'https://dellavolpecombr.sharepoint.com/sites/DellaVolpe'
-username = 'marcos.silva@dellavolpe.com.br'
-password = '38213824rR$$'
-
-def uploadSharePoint(local_file_path, sharepoint_folder):
-    ctx_auth = AuthenticationContext(url_sharepoint)
-    if ctx_auth.acquire_token_for_user(username, password):
-        ctx = ClientContext(url_sharepoint, ctx_auth)
-        with open(local_file_path, 'rb') as file_content:
-            file_name = os.path.basename(local_file_path)
-            target_folder = ctx.web.get_folder_by_server_relative_url(sharepoint_folder)
-            target_folder.upload_file(file_name, file_content).execute_query()
-            st.success(f"✅ Arquivo **{file_name}** enviado com sucesso para o SharePoint, agora é só atualizar o indicador: https://app.powerbi.com/groups/9b59453e-21da-4a0c-8b2f-71451adc77fb/reports/5536e2b3-d355-4087-a081-2edc90854bb7/c5a41d1f74f190655f38?experience=power-bi")
-    else:
-        st.error("❌ Autenticação no SharePoint falhou.")
+# --- Caminho de destino (Downloads) ---
+DOWNLOADS_PATH = r"C:\Users\MArcos.Silva\Downloads\TicketsMovidesk.csv"
 
 # --- Funções auxiliares ---
 
@@ -93,7 +76,7 @@ def get_first_action_description(actions):
 
 # --- Streamlit app ---
 
-st.title("📊 Coleta de Tickets Movidesk e Upload para SharePoint")
+st.title("📊 Coleta de Tickets Movidesk (Salva em Downloads)")
 
 # --- Seleção de data inicial ---
 data_inicial = st.date_input(
@@ -103,15 +86,12 @@ data_inicial = st.date_input(
     max_value=datetime.now().date()
 )
 
-if st.button("🚀 Iniciar a extração de dados e upload da base para atualização do indicador!"):
-    # --- Captura o timestamp da execução ---
+if st.button("🚀 Iniciar a extração e salvar na pasta Downloads"):
     from zoneinfo import ZoneInfo
     execution_timestamp = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y %H:%M:%S')
-    # --- Exibe o timestamp ao lado da barra de progresso ---
     st.info(f"🕒 Data/hora da execução: {execution_timestamp}")
 
     with st.spinner("Extraindo base..."):
-
         # --- Intervalo de datas ---
         start_date = datetime.combine(data_inicial, datetime.min.time())
         end_date = datetime.now()
@@ -133,24 +113,39 @@ if st.button("🚀 Iniciar a extração de dados e upload da base para atualiza�
         df = pd.DataFrame(all_data)
         df['first_action_description'] = df['actions'].apply(get_first_action_description)
 
-        expanded_fields = df['customFieldValues'].apply(extract_custom_fields)
-        custom_fields_df = pd.DataFrame(expanded_fields.tolist())
+        # Prevenir erro se coluna não existir
+        if 'customFieldValues' in df.columns:
+            expanded_fields = df['customFieldValues'].apply(extract_custom_fields)
+            custom_fields_df = pd.DataFrame(expanded_fields.tolist())
+        else:
+            custom_fields_df = pd.DataFrame()
 
-        expanded_owners = df['owner'].apply(expand_owner)
-        owner_fields_df = pd.DataFrame(expanded_owners.tolist())
+        if 'owner' in df.columns:
+            expanded_owners = df['owner'].apply(expand_owner)
+            owner_fields_df = pd.DataFrame(expanded_owners.tolist())
+        else:
+            owner_fields_df = pd.DataFrame()
 
-        expanded_createdBy = df['createdBy'].apply(expand_createdby)
-        createdBy_fields_df = pd.DataFrame(expanded_createdBy.tolist())
+        if 'createdBy' in df.columns:
+            expanded_createdBy = df['createdBy'].apply(expand_createdby)
+            createdBy_fields_df = pd.DataFrame(expanded_createdBy.tolist())
+        else:
+            createdBy_fields_df = pd.DataFrame()
 
+        # Drop somente se as colunas existirem
+        drop_cols = [c for c in ['owner', 'customFieldValues', 'createdBy', 'actions'] if c in df.columns]
         df_final = pd.concat([
-            df.drop(['owner', 'customFieldValues', 'createdBy', 'actions'], axis=1), 
-            owner_fields_df, 
+            df.drop(drop_cols, axis=1) if not df.drop(drop_cols, axis=1).empty else df,
+            owner_fields_df,
             custom_fields_df,
             createdBy_fields_df
         ], axis=1)
 
-        df_final['createdDate'] = pd.to_datetime(df_final['createdDate'], errors='coerce').dt.strftime('%d/%m/%Y %H:%M')
-        df_final['resolvedIn'] = pd.to_datetime(df_final['resolvedIn'], errors='coerce').dt.strftime('%d/%m/%Y %H:%M')
+        # Tratamento de datas (com segurança contra NaT)
+        if 'createdDate' in df_final.columns:
+            df_final['createdDate'] = pd.to_datetime(df_final['createdDate'], errors='coerce').dt.strftime('%d/%m/%Y %H:%M')
+        if 'resolvedIn' in df_final.columns:
+            df_final['resolvedIn'] = pd.to_datetime(df_final['resolvedIn'], errors='coerce').dt.strftime('%d/%m/%Y %H:%M')
 
         # --- Mapeamento dos nomes das colunas customizadas ---
         de_para_customField = {  
@@ -218,21 +213,18 @@ if st.button("🚀 Iniciar a extração de dados e upload da base para atualiza�
             'customField_177673': 'SIG - Tipo de Ticket'  
         }
 
-        df_final = df_final.rename(columns=de_para_customField)
+        df_final = df_final.rename(columns=de_para_customField, errors='ignore')
 
         # --- Adiciona a coluna de timestamp ---
         df_final['execution_timestamp'] = execution_timestamp
 
         # --- Salvando arquivo na sua pasta Downloads ---
-        csv = r"C:\Users\MArcos.Silva\Downloads\TicketsMovidesk.csv"
-        df_final.to_csv(csv, index=False)
-        st.success(f"✅ Arquivo **{csv}** salvo na pasta Downloads.")
-
-        # --- Upload para SharePoint (tento, mas não paro o app se der erro) ---
         try:
-            uploadSharePoint(csv, sharepoint_folder)
+            os.makedirs(os.path.dirname(DOWNLOADS_PATH), exist_ok=True)
+            df_final.to_csv(DOWNLOADS_PATH, index=False)
+            st.success(f"✅ Arquivo salvo em: {DOWNLOADS_PATH}")
         except Exception as e:
-            st.error("Falha no upload para SharePoint. Veja logs para detalhes.")
+            st.error("❌ Falha ao salvar o arquivo localmente.")
             st.write(str(e))
 
         # --- Mostra um trecho da tabela ---
