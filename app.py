@@ -3,10 +3,23 @@ import requests
 import pandas as pd
 from datetime import datetime, timedelta
 import os
-from io import BytesIO
 
 # --- Caminho desejado (apenas usado se rodar localmente no Windows) ---
 DOWNLOADS_PATH = r"C:\Users\MArcos.Silva\Downloads\TicketsMovidesk.csv"
+
+# --- Lista fixa de e-mails que você solicitou (serão os únicos mantidos) ---
+ALLOWED_EMAILS = [
+    "karina.viana@dellavolpe.com.br",
+    "danillo.silva@dellavolpe.com.br",
+    "thayane.jesus@dellavolpe.com.br",
+    "ana.jesus@dellavolpe.com.br",
+    "thicyane.pena@dellavolpe.com.br",
+    "brenda.felgueiras@dellavolpe.com.br",
+    "erick.martini@dellavolpe.com.br",
+    "marcos.silva@dellavolpe.com.br"
+]
+# Normalize allowed emails (lowercase, strip)
+ALLOWED_EMAILS = [e.strip().lower() for e in ALLOWED_EMAILS]
 
 # --- Funções auxiliares ---
 def get_tickets_for_date(date):
@@ -70,7 +83,7 @@ def get_first_action_description(actions):
     return None
 
 # --- Streamlit app ---
-st.title("📊 Coleta de Tickets Movidesk (Salva em Downloads ou Download via navegador)")
+st.title("📊 Coleta de Tickets Movidesk (filtrado por createdBy_email)")
 
 data_inicial = st.date_input(
     "Selecione a data inicial:",
@@ -79,7 +92,7 @@ data_inicial = st.date_input(
     max_value=datetime.now().date()
 )
 
-if st.button("🚀 Iniciar a extração e salvar/baixar CSV"):
+if st.button("🚀 Extrair, filtrar por e-mails e salvar/baixar CSV"):
     from zoneinfo import ZoneInfo
     execution_timestamp = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y %H:%M:%S')
     st.info(f"🕒 Data/hora da execução: {execution_timestamp}")
@@ -130,39 +143,44 @@ if st.button("🚀 Iniciar a extração e salvar/baixar CSV"):
         if 'resolvedIn' in df_final.columns:
             df_final['resolvedIn'] = pd.to_datetime(df_final['resolvedIn'], errors='coerce').dt.strftime('%d/%m/%Y %H:%M')
 
-        # rename custom fields (mantive seu map)
-        de_para_customField = {
-            'customField_177683': 'CON - ANO',
-            'customField_178151': 'CON - ID DE CUSTO',
-            # ... (mantive só os necessários no exemplo; cole seu mapa completo se quiser)
-        }
-        # use errors='ignore' para não quebrar se chaves ausentes
-        df_final = df_final.rename(columns=de_para_customField, errors='ignore')
+        # rename custom fields if needed (kept minimal)
+        df_final = df_final.rename(columns={}, errors='ignore')
 
         df_final['execution_timestamp'] = execution_timestamp
 
+        # --- FILTRAR por createdBy_email usando a lista ALLOWED_EMAILS ---
+        if 'createdBy_email' in df_final.columns:
+            # normaliza para comparação segura
+            df_final['createdBy_email_norm'] = df_final['createdBy_email'].astype(str).str.strip().str.lower()
+            before_count = len(df_final)
+            df_final = df_final[df_final['createdBy_email_norm'].isin(ALLOWED_EMAILS)].copy()
+            after_count = len(df_final)
+            st.success(f"Filtro aplicado: {after_count} chamados mantidos de {before_count} originais.")
+            # remove coluna auxiliar
+            df_final.drop(columns=['createdBy_email_norm'], inplace=True)
+        else:
+            st.error("A coluna 'createdBy_email' não foi encontrada nos dados. Nenhum filtro aplicado.")
+
         # --- TENTAR SALVAR LOCAL (apenas se o caminho existir) ---
-        saved_locally = False
         try:
+            saved_locally = False
             downloads_dir = os.path.dirname(DOWNLOADS_PATH) if DOWNLOADS_PATH else ""
             if downloads_dir and os.name == 'nt' and os.path.exists(downloads_dir):
-                # garante que a pasta existe (no Windows local)
                 df_final.to_csv(DOWNLOADS_PATH, index=False)
                 st.success(f"✅ Arquivo salvo em: {DOWNLOADS_PATH}")
                 saved_locally = True
             else:
-                # ambiente não tem a pasta local acessível (Cloud / Linux / pasta inexistente)
-                st.info("A pasta local de Downloads não está acessível neste ambiente. Vou gerar um botão para download.")
+                st.info("A pasta local de Downloads não está acessível neste ambiente. Use o botão de download.")
         except Exception as e:
             st.error("❌ Falha ao salvar localmente: " + str(e))
 
-        # --- Sempre ofereço um botão de download (caso local falhe ou para quem roda remotamente) ---
+        # --- Sempre ofereço um botão de download ---
         try:
             to_download = df_final.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="⬇️ Baixar CSV pelo navegador",
                 data=to_download,
-                file_name="TicketsMovidesk.csv",
+                file_name="TicketsMovidesk_filtrado.csv",
                 mime="text/csv"
             )
         except Exception as e:
