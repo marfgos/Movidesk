@@ -10,7 +10,7 @@ import os
 sharepoint_folder = '/sites/DellaVolpe/Documentos%20Compartilhados/Planejamentos/Dados_PVD/'
 url_sharepoint = 'https://dellavolpecombr.sharepoint.com/sites/DellaVolpe'
 username = 'marcos.silva@dellavolpe.com.br'
-password = '38213824rR!!'
+password = '38213824rR$$'
 
 def uploadSharePoint(local_file_path, sharepoint_folder):
     ctx_auth = AuthenticationContext(url_sharepoint)
