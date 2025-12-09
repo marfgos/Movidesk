@@ -223,13 +223,17 @@ if st.button("🚀 Iniciar a extração de dados e upload da base para atualiza�
         # --- Adiciona a coluna de timestamp ---
         df_final['execution_timestamp'] = execution_timestamp
 
-        # --- Salvando arquivo temporário ---
-        csv = 'TicketsMovidesk.csv'
+        # --- Salvando arquivo na sua pasta Downloads ---
+        csv = r"C:\Users\MArcos.Silva\Downloads\TicketsMovidesk.csv"
         df_final.to_csv(csv, index=False)
-        st.success(f"✅ Arquivo **{csv}** salvo localmente.")
+        st.success(f"✅ Arquivo **{csv}** salvo na pasta Downloads.")
 
-        # --- Upload para SharePoint ---
-        uploadSharePoint(csv, sharepoint_folder)
+        # --- Upload para SharePoint (tento, mas não paro o app se der erro) ---
+        try:
+            uploadSharePoint(csv, sharepoint_folder)
+        except Exception as e:
+            st.error("Falha no upload para SharePoint. Veja logs para detalhes.")
+            st.write(str(e))
 
         # --- Mostra um trecho da tabela ---
         st.dataframe(df_final.head())
