@@ -7,7 +7,7 @@ import os
 # --- Caminho desejado (apenas usado se rodar localmente no Windows) ---
 DOWNLOADS_PATH = r"C:\Users\MArcos.Silva\Downloads\TicketsMovidesk.csv"
 
-# --- Lista fixa de e-mails que você solicitou (serão os únicos mantidos) ---
+# --- Lista fixa de e-mails permitidos ---
 ALLOWED_EMAILS = [
     "karina.viana@dellavolpe.com.br",
     "danillo.silva@dellavolpe.com.br",
@@ -18,7 +18,6 @@ ALLOWED_EMAILS = [
     "erick.martini@dellavolpe.com.br",
     "marcos.silva@dellavolpe.com.br"
 ]
-# Normalize allowed emails (lowercase, strip)
 ALLOWED_EMAILS = [e.strip().lower() for e in ALLOWED_EMAILS]
 
 # --- Funções auxiliares ---
@@ -52,8 +51,11 @@ def extract_custom_fields(custom_field_values):
 
 def expand_owner(owner):
     if owner is None:
-        return dict.fromkeys(['owner_id', 'owner_personType', 'owner_profileType',
-                              'owner_businessName', 'owner_email', 'owner_phone', 'owner_pathPicture'], None)
+        return dict.fromkeys(
+            ['owner_id', 'owner_personType', 'owner_profileType',
+             'owner_businessName', 'owner_email', 'owner_phone', 'owner_pathPicture'],
+            None
+        )
     return {
         'owner_id': owner.get('id'),
         'owner_personType': owner.get('personType'),
@@ -66,8 +68,11 @@ def expand_owner(owner):
 
 def expand_createdby(createdby):
     if createdby is None:
-        return dict.fromkeys(['createdBy_id', 'createdBy_businessName', 'createdBy_email',
-                              'createdBy_phone', 'createdBy_profileType', 'createdBy_personType'], None)
+        return dict.fromkeys(
+            ['createdBy_id', 'createdBy_businessName', 'createdBy_email',
+             'createdBy_phone', 'createdBy_profileType', 'createdBy_personType'],
+            None
+        )
     return {
         'createdBy_id': createdby.get('id'),
         'createdBy_businessName': createdby.get('businessName'),
@@ -83,7 +88,7 @@ def get_first_action_description(actions):
     return None
 
 # --- Streamlit app ---
-st.title("📊 Coleta de Tickets Movidesk (filtrado por createdBy_email)")
+st.title("📊 Coleta de Tickets Movidesk (e-mails permitidos + Agendamento)")
 
 data_inicial = st.date_input(
     "Selecione a data inicial:",
@@ -92,9 +97,12 @@ data_inicial = st.date_input(
     max_value=datetime.now().date()
 )
 
-if st.button("🚀 Extrair, filtrar por e-mails e salvar/baixar CSV"):
+if st.button("🚀 Extrair, filtrar e salvar/baixar CSV"):
     from zoneinfo import ZoneInfo
-    execution_timestamp = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime('%d/%m/%Y %H:%M:%S')
+    execution_timestamp = datetime.now(
+        ZoneInfo("America/Sao_Paulo")
+    ).strftime('%d/%m/%Y %H:%M:%S')
+
     st.info(f"🕒 Data/hora da execução: {execution_timestamp}")
 
     with st.spinner("Extraindo base..."):
@@ -104,6 +112,7 @@ if st.button("🚀 Extrair, filtrar por e-mails e salvar/baixar CSV"):
 
         all_data = []
         progress = st.progress(0)
+
         for idx, date in enumerate(dates, 1):
             data = get_tickets_for_date(date)
             if isinstance(data, list):
@@ -117,76 +126,100 @@ if st.button("🚀 Extrair, filtrar por e-mails e salvar/baixar CSV"):
         df = pd.DataFrame(all_data)
         df['first_action_description'] = df['actions'].apply(get_first_action_description)
 
-        # safety checks for optional columns
         custom_fields_df = pd.DataFrame()
         owner_fields_df = pd.DataFrame()
         createdBy_fields_df = pd.DataFrame()
 
         if 'customFieldValues' in df.columns:
-            expanded_fields = df['customFieldValues'].apply(extract_custom_fields)
-            custom_fields_df = pd.DataFrame(expanded_fields.tolist())
+            custom_fields_df = pd.DataFrame(
+                df['customFieldValues'].apply(extract_custom_fields).tolist()
+            )
 
         if 'owner' in df.columns:
-            expanded_owners = df['owner'].apply(expand_owner)
-            owner_fields_df = pd.DataFrame(expanded_owners.tolist())
+            owner_fields_df = pd.DataFrame(
+                df['owner'].apply(expand_owner).tolist()
+            )
 
         if 'createdBy' in df.columns:
-            expanded_createdBy = df['createdBy'].apply(expand_createdby)
-            createdBy_fields_df = pd.DataFrame(expanded_createdBy.tolist())
+            createdBy_fields_df = pd.DataFrame(
+                df['createdBy'].apply(expand_createdby).tolist()
+            )
 
         drop_cols = [c for c in ['owner', 'customFieldValues', 'createdBy', 'actions'] if c in df.columns]
-        left_df = df.drop(drop_cols, axis=1) if not df.drop(drop_cols, axis=1).empty else df
+        left_df = df.drop(drop_cols, axis=1)
         df_final = pd.concat([left_df, owner_fields_df, custom_fields_df, createdBy_fields_df], axis=1)
 
         if 'createdDate' in df_final.columns:
-            df_final['createdDate'] = pd.to_datetime(df_final['createdDate'], errors='coerce').dt.strftime('%d/%m/%Y %H:%M')
-        if 'resolvedIn' in df_final.columns:
-            df_final['resolvedIn'] = pd.to_datetime(df_final['resolvedIn'], errors='coerce').dt.strftime('%d/%m/%Y %H:%M')
+            df_final['createdDate'] = pd.to_datetime(
+                df_final['createdDate'], errors='coerce'
+            ).dt.strftime('%d/%m/%Y %H:%M')
 
-        # rename custom fields if needed (kept minimal)
-        df_final = df_final.rename(columns={}, errors='ignore')
+        if 'resolvedIn' in df_final.columns:
+            df_final['resolvedIn'] = pd.to_datetime(
+                df_final['resolvedIn'], errors='coerce'
+            ).dt.strftime('%d/%m/%Y %H:%M')
 
         df_final['execution_timestamp'] = execution_timestamp
 
-        # --- FILTRAR por createdBy_email usando a lista ALLOWED_EMAILS ---
-        if 'createdBy_email' in df_final.columns:
-            # normaliza para comparação segura
-            df_final['createdBy_email_norm'] = df_final['createdBy_email'].astype(str).str.strip().str.lower()
-            before_count = len(df_final)
-            df_final = df_final[df_final['createdBy_email_norm'].isin(ALLOWED_EMAILS)].copy()
-            after_count = len(df_final)
-            st.success(f"Filtro aplicado: {after_count} chamados mantidos de {before_count} originais.")
-            # remove coluna auxiliar
-            df_final.drop(columns=['createdBy_email_norm'], inplace=True)
-        else:
-            st.error("A coluna 'createdBy_email' não foi encontrada nos dados. Nenhum filtro aplicado.")
+        # --- FILTRO FINAL (REGRA DE NEGÓCIO) ---
+        if 'createdBy_email' in df_final.columns and 'serviceFull' in df_final.columns:
 
-        # --- TENTAR SALVAR LOCAL (apenas se o caminho existir) ---
+            df_final['createdBy_email_norm'] = (
+                df_final['createdBy_email']
+                .astype(str)
+                .str.strip()
+                .str.lower()
+            )
+
+            df_final['serviceFull_norm'] = (
+                df_final['serviceFull']
+                .astype(str)
+                .str.strip()
+                .str.lower()
+            )
+
+            before_count = len(df_final)
+
+            df_final = df_final[
+                (df_final['createdBy_email_norm'].isin(ALLOWED_EMAILS)) |
+                (df_final['serviceFull_norm'] == 'agendamento')
+            ].copy()
+
+            after_count = len(df_final)
+
+            st.success(
+                f"Filtro aplicado: {after_count} chamados mantidos de {before_count} "
+                f"(e-mails permitidos + serviceFull = agendamento)."
+            )
+
+            df_final.drop(
+                columns=['createdBy_email_norm', 'serviceFull_norm'],
+                inplace=True
+            )
+
+        else:
+            st.error("Colunas 'createdBy_email' ou 'serviceFull' não encontradas. Nenhum filtro aplicado.")
+
+        # --- SALVAR LOCAL (se possível) ---
         try:
-            saved_locally = False
-            downloads_dir = os.path.dirname(DOWNLOADS_PATH) if DOWNLOADS_PATH else ""
-            if downloads_dir and os.name == 'nt' and os.path.exists(downloads_dir):
+            downloads_dir = os.path.dirname(DOWNLOADS_PATH)
+            if os.name == 'nt' and os.path.exists(downloads_dir):
                 df_final.to_csv(DOWNLOADS_PATH, index=False)
                 st.success(f"✅ Arquivo salvo em: {DOWNLOADS_PATH}")
-                saved_locally = True
             else:
-                st.info("A pasta local de Downloads não está acessível neste ambiente. Use o botão de download.")
+                st.info("Pasta local não acessível. Use o botão de download.")
         except Exception as e:
-            st.error("❌ Falha ao salvar localmente: " + str(e))
+            st.error(f"❌ Erro ao salvar localmente: {e}")
 
-        # --- Sempre ofereço um botão de download ---
-        try:
-            to_download = df_final.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="⬇️ Baixar CSV pelo navegador",
-                data=to_download,
-                file_name="TicketsMovidesk_filtrado.csv",
-                mime="text/csv"
-            )
-        except Exception as e:
-            st.error("Erro ao criar botão de download: " + str(e))
+        # --- DOWNLOAD ---
+        to_download = df_final.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="⬇️ Baixar CSV pelo navegador",
+            data=to_download,
+            file_name="TicketsMovidesk_filtrado.csv",
+            mime="text/csv"
+        )
 
-        # mostra um trecho
         st.dataframe(df_final.head())
 
     st.balloons()
