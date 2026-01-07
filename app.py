@@ -42,53 +42,46 @@ def extract_custom_fields(custom_field_values):
     custom_fields = {}
     for field in custom_field_values:
         field_id = field.get('customFieldId')
-        value = field.get('value', None)
-        if not value and field.get('items') and isinstance(field['items'], list) and len(field['items']) > 0:
-            item = field['items'][0]
-            value = item.get('customFieldItem') if isinstance(item, dict) else None
+        value = field.get('value')
+        if not value and field.get('items'):
+            value = field['items'][0].get('customFieldItem')
         custom_fields[f'customField_{field_id}'] = value
     return custom_fields
 
 def expand_owner(owner):
     if owner is None:
-        return dict.fromkeys(
-            ['owner_id', 'owner_personType', 'owner_profileType',
-             'owner_businessName', 'owner_email', 'owner_phone', 'owner_pathPicture'],
-            None
-        )
+        return {}
     return {
         'owner_id': owner.get('id'),
-        'owner_personType': owner.get('personType'),
-        'owner_profileType': owner.get('profileType'),
         'owner_businessName': owner.get('businessName'),
-        'owner_email': owner.get('email'),
-        'owner_phone': owner.get('phone'),
-        'owner_pathPicture': owner.get('pathPicture')
+        'owner_email': owner.get('email')
     }
 
 def expand_createdby(createdby):
     if createdby is None:
-        return dict.fromkeys(
-            ['createdBy_id', 'createdBy_businessName', 'createdBy_email',
-             'createdBy_phone', 'createdBy_profileType', 'createdBy_personType'],
-            None
-        )
+        return {}
     return {
         'createdBy_id': createdby.get('id'),
         'createdBy_businessName': createdby.get('businessName'),
-        'createdBy_email': createdby.get('email'),
-        'createdBy_phone': createdby.get('phone'),
-        'createdBy_profileType': createdby.get('profileType'),
-        'createdBy_personType': createdby.get('personType')
+        'createdBy_email': createdby.get('email')
     }
 
 def get_first_action_description(actions):
-    if actions and isinstance(actions, list) and len(actions) > 0:
-        return actions[0].get('description', None)
+    if actions and len(actions) > 0:
+        return actions[0].get('description')
     return None
 
 # --- Streamlit app ---
-st.title("📊 Coleta de Tickets Movidesk (e-mails permitidos + Agendamento)")
+st.title("📊 Coleta de Tickets Movidesk")
+
+# 🔹 SELETOR DE BASE
+tipo_base = st.radio(
+    "Selecione a base desejada:",
+    (
+        "Somente chamados criados pelos usuários autorizados",
+        "Somente chamados do serviço \"Agendamento\""
+    )
+)
 
 data_inicial = st.date_input(
     "Selecione a data inicial:",
@@ -119,103 +112,44 @@ if st.button("🚀 Extrair, filtrar e salvar/baixar CSV"):
                 all_data.extend(data)
             progress.progress(idx / len(dates))
 
-        for item in all_data:
-            if 'actions' not in item:
-                item['actions'] = None
-
         df = pd.DataFrame(all_data)
         df['first_action_description'] = df['actions'].apply(get_first_action_description)
 
-        custom_fields_df = pd.DataFrame()
-        owner_fields_df = pd.DataFrame()
-        createdBy_fields_df = pd.DataFrame()
+        custom_fields_df = pd.DataFrame(df['customFieldValues'].apply(extract_custom_fields).tolist())
+        owner_df = pd.DataFrame(df['owner'].apply(expand_owner).tolist())
+        createdby_df = pd.DataFrame(df['createdBy'].apply(expand_createdby).tolist())
 
-        if 'customFieldValues' in df.columns:
-            custom_fields_df = pd.DataFrame(
-                df['customFieldValues'].apply(extract_custom_fields).tolist()
-            )
-
-        if 'owner' in df.columns:
-            owner_fields_df = pd.DataFrame(
-                df['owner'].apply(expand_owner).tolist()
-            )
-
-        if 'createdBy' in df.columns:
-            createdBy_fields_df = pd.DataFrame(
-                df['createdBy'].apply(expand_createdby).tolist()
-            )
-
-        drop_cols = [c for c in ['owner', 'customFieldValues', 'createdBy', 'actions'] if c in df.columns]
-        left_df = df.drop(drop_cols, axis=1)
-        df_final = pd.concat([left_df, owner_fields_df, custom_fields_df, createdBy_fields_df], axis=1)
-
-        if 'createdDate' in df_final.columns:
-            df_final['createdDate'] = pd.to_datetime(
-                df_final['createdDate'], errors='coerce'
-            ).dt.strftime('%d/%m/%Y %H:%M')
-
-        if 'resolvedIn' in df_final.columns:
-            df_final['resolvedIn'] = pd.to_datetime(
-                df_final['resolvedIn'], errors='coerce'
-            ).dt.strftime('%d/%m/%Y %H:%M')
+        df = df.drop(columns=['customFieldValues', 'owner', 'createdBy', 'actions'])
+        df_final = pd.concat([df, owner_df, createdby_df, custom_fields_df], axis=1)
 
         df_final['execution_timestamp'] = execution_timestamp
 
-        # --- FILTRO FINAL (REGRA DE NEGÓCIO) ---
-        if 'createdBy_email' in df_final.columns and 'serviceFull' in df_final.columns:
+        # 🔥 FILTRO CONFORME BASE ESCOLHIDA
+        before = len(df_final)
 
-            df_final['createdBy_email_norm'] = (
-                df_final['createdBy_email']
-                .astype(str)
-                .str.strip()
-                .str.lower()
-            )
-
-            df_final['serviceFull_norm'] = (
-                df_final['serviceFull']
-                .astype(str)
-                .str.strip()
-                .str.lower()
-            )
-
-            before_count = len(df_final)
-
-            df_final = df_final[
-                (df_final['createdBy_email_norm'].isin(ALLOWED_EMAILS)) |
-                (df_final['serviceFull_norm'] == 'agendamento')
-            ].copy()
-
-            after_count = len(df_final)
-
-            st.success(
-                f"Filtro aplicado: {after_count} chamados mantidos de {before_count} "
-                f"(e-mails permitidos + serviceFull = agendamento)."
-            )
-
-            df_final.drop(
-                columns=['createdBy_email_norm', 'serviceFull_norm'],
-                inplace=True
-            )
-
+        if tipo_base == "Somente chamados criados pelos usuários autorizados":
+            df_final['createdBy_email'] = df_final['createdBy_email'].str.lower().str.strip()
+            df_final = df_final[df_final['createdBy_email'].isin(ALLOWED_EMAILS)]
         else:
-            st.error("Colunas 'createdBy_email' ou 'serviceFull' não encontradas. Nenhum filtro aplicado.")
+            df_final['serviceFull'] = df_final['serviceFull'].str.lower().str.strip()
+            df_final = df_final[df_final['serviceFull'] == 'agendamento']
 
-        # --- SALVAR LOCAL (se possível) ---
+        after = len(df_final)
+
+        st.success(f"{after} chamados mantidos de {before} ({tipo_base})")
+
+        # --- SALVAR LOCAL ---
         try:
-            downloads_dir = os.path.dirname(DOWNLOADS_PATH)
-            if os.name == 'nt' and os.path.exists(downloads_dir):
+            if os.name == 'nt' and os.path.exists(os.path.dirname(DOWNLOADS_PATH)):
                 df_final.to_csv(DOWNLOADS_PATH, index=False)
-                st.success(f"✅ Arquivo salvo em: {DOWNLOADS_PATH}")
-            else:
-                st.info("Pasta local não acessível. Use o botão de download.")
+                st.success(f"Arquivo salvo em {DOWNLOADS_PATH}")
         except Exception as e:
-            st.error(f"❌ Erro ao salvar localmente: {e}")
+            st.error(str(e))
 
         # --- DOWNLOAD ---
-        to_download = df_final.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="⬇️ Baixar CSV pelo navegador",
-            data=to_download,
+            "⬇️ Baixar CSV",
+            data=df_final.to_csv(index=False).encode("utf-8"),
             file_name="TicketsMovidesk_filtrado.csv",
             mime="text/csv"
         )
