@@ -2,3 +2,4 @@ streamlit
 requests
 pandas
 office365-rest-python-client
+openai-whisper
